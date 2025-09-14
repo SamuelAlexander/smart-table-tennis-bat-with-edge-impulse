@@ -7,7 +7,7 @@ description: >-
 
 **Created By:** Samuel Alexander  
 **Edge Impulse Public Project:** https://studio.edgeimpulse.com/public/732429/live  
-**GitHub Repository:** (Download code and STL files here)  
+**GitHub Repository:** https://github.com/SamuelAlexander/smart-table-tennis-bat-with-edge-impulse  
 **Demonstration video:** https://youtu.be/uuwvcWkOnFA
 
 ---
