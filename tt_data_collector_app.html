@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TT Stroke Collector</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+
+        .button {
+            width: 100%;
+            padding: 18px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #d32f2f;
+            transform: translateY(-2px);
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status-item {
+            margin-bottom: 15px;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .connection-status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status-disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+        }
+
+        .status-connected {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+
+        .status-connecting {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+        }
+
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            opacity: 0.9;
+        }
+
+        .swing-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .button {
+                padding: 16px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏓 TT Stroke Collector</h1>
+        
+        <div class="connection-status status-disconnected" id="connectionStatus">
+            Disconnected
+        </div>
+
+        <div class="input-group">
+            <label for="strokeType">Stroke Type:</label>
+            <input type="text" id="strokeType" placeholder="e.g., FHdrive, BHchop, FHsmash" value="">
+        </div>
+
+        <button class="button btn-primary" id="connectBtn" onclick="connectToDevice()">
+            Connect to Arduino
+        </button>
+
+        <div id="sessionPanel" class="hidden">
+            <div class="status-panel">
+                <div class="status-item">
+                    <div class="status-label">Current Stroke</div>
+                    <div class="status-value" id="currentStroke">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Swings Collected</div>
+                    <div class="status-value" id="swingCount">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Session Time</div>
+                    <div class="status-value" id="sessionTime">00:00</div>
+                </div>
+            </div>
+
+            <button class="button btn-secondary" id="downloadBtn" onclick="downloadSwings()" disabled>
+                Download CSV Files
+            </button>
+
+            <button class="button btn-danger" id="resetBtn" onclick="resetSession()">
+                Reset Session
+            </button>
+        </div>
+
+        <div class="log" id="logContainer">
+            <div class="log-entry">Ready to connect...</div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let bleDevice = null;
+        let bleCharacteristic = null;
+        let isConnected = false;
+        let sessionStartTime = null;
+        let sessionTimer = null;
+        let swingData = [];
+        let currentSwingBuffer = '';
+        let swingCount = 0;
+
+        // Logging function
+        function log(message) {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Update connection status
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = 'connection-status';
+            
+            switch(status) {
+                case 'connected':
+                    statusEl.className += ' status-connected';
+                    statusEl.textContent = 'Connected to Arduino';
+                    break;
+                case 'connecting':
+                    statusEl.className += ' status-connecting';
+                    statusEl.textContent = 'Connecting...';
+                    break;
+                case 'disconnected':
+                default:
+                    statusEl.className += ' status-disconnected';
+                    statusEl.textContent = 'Disconnected';
+                    break;
+            }
+        }
+
+        // Start session timer
+        function startSessionTimer() {
+            sessionStartTime = Date.now();
+            sessionTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('sessionTime').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Stop session timer
+        function stopSessionTimer() {
+            if (sessionTimer) {
+                clearInterval(sessionTimer);
+                sessionTimer = null;
+            }
+        }
+
+        // Connect to BLE device
+        async function connectToDevice() {
+            const strokeType = document.getElementById('strokeType').value.trim();
+            if (!strokeType) {
+                alert('Please enter a stroke type first!');
+                return;
+            }
+
+            try {
+                updateConnectionStatus('connecting');
+                log('Scanning for TT-Stroke-Collector...');
+
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'TT-Stroke-Collector' }],
+                    optionalServices: ['12345678-1234-1234-1234-123456789abc']
+                });
+
+                log('Device found, connecting...');
+                const server = await bleDevice.gatt.connect();
+                
+                log('Getting service...');
+                const service = await server.getPrimaryService('12345678-1234-1234-1234-123456789abc');
+                
+                log('Getting characteristic...');
+                bleCharacteristic = await service.getCharacteristic('87654321-4321-4321-4321-cba987654321');
+                
+                // Set up notifications
+                await bleCharacteristic.startNotifications();
+                bleCharacteristic.addEventListener('characteristicvaluechanged', handleDataReceived);
+                
+                // Set up disconnect handler
+                bleDevice.addEventListener('gattserverdisconnected', handleDisconnection);
+                
+                isConnected = true;
+                updateConnectionStatus('connected');
+                log('Connected successfully!');
+                
+                // Start session
+                startSession();
+                
+            } catch (error) {
+                log(`Connection failed: ${error.message}`);
+                updateConnectionStatus('disconnected');
+                isConnected = false;
+            }
+        }
+
+        // Handle data received from Arduino
+        function handleDataReceived(event) {
+            const decoder = new TextDecoder();
+            const data = decoder.decode(event.target.value);
+            
+            if (data === 'END_SWING') {
+                // Process complete swing data
+                processSwingData();
+                currentSwingBuffer = '';
+            } else {
+                // Accumulate data chunks
+                currentSwingBuffer += data;
+            }
+        }
+
+        // Process complete swing data (new compact format)
+        function processSwingData() {
+            try {
+                const lines = currentSwingBuffer.trim().split('\n');
+                if (lines.length < 2) {
+                    log('Error: Incomplete swing data received');
+                    return;
+                }
+                
+                // Parse header: swingNumber|timestamp|
+                const headerParts = lines[0].split('|');
+                const swingNumber = parseInt(headerParts[0]);
+                const timestamp = parseInt(headerParts[1]);
+                
+                log(`Processing swing #${swingNumber}`);
+                
+                // Parse CSV data lines
+                const csvData = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line && !line.includes('|')) { // Skip header and empty lines
+                        const values = line.split(',');
+                        if (values.length === 7) {
+                            csvData.push(values.map(v => parseFloat(v)));
+                        }
+                    }
+                }
+                
+                if (csvData.length === 0) {
+                    log('Error: No valid CSV data found in swing');
+                    return;
+                }
+                
+                // Fill timestamp gaps if needed
+                const refinedCsv = refineTimestamps(csvData);
+                
+                // Convert to CSV format
+                const csvString = convertArrayToCSV(refinedCsv);
+                swingData.push({
+                    number: swingNumber,
+                    csv: csvString,
+                    timestamp: timestamp
+                });
+                
+                // Update UI
+                swingCount = swingData.length;
+                document.getElementById('swingCount').textContent = swingCount;
+                document.getElementById('swingCount').classList.add('swing-animation');
+                setTimeout(() => {
+                    document.getElementById('swingCount').classList.remove('swing-animation');
+                }, 500);
+                
+                // Enable download if we have data
+                document.getElementById('downloadBtn').disabled = false;
+                
+                log(`Swing processed. Total: ${swingCount} (${csvData.length} samples)`);
+                
+            } catch (error) {
+                log(`Error processing swing data: ${error.message}`);
+                // Don't throw error, just log and continue
+            }
+        }
+
+        // Refine timestamps - fill gaps and ensure 10ms intervals
+        function refineTimestamps(csvData) {
+            if (csvData.length === 0) return csvData;
+            
+            const refined = [];
+            const expectedSamples = 25; // 500ms / 20ms
+            
+            // Sort by timestamp to handle any out-of-order data
+            csvData.sort((a, b) => a[0] - b[0]);
+            
+            for (let i = 0; i < expectedSamples; i++) {
+                const expectedTime = i * 20; // 0, 10, 20, ... 490ms
+                
+                // Find closest actual sample
+                let closestIndex = 0;
+                let closestDiff = Math.abs(csvData[0][0] - expectedTime);
+                
+                for (let j = 1; j < csvData.length; j++) {
+                    const diff = Math.abs(csvData[j][0] - expectedTime);
+                    if (diff < closestDiff) {
+                        closestDiff = diff;
+                        closestIndex = j;
+                    }
+                }
+                
+                // Use closest sample but fix timestamp
+                const sample = [...csvData[closestIndex]];
+                sample[0] = expectedTime; // Fix timestamp
+                refined.push(sample);
+            }
+            
+            return refined;
+        }
+
+        // Convert array data to CSV string
+        function convertArrayToCSV(csvData) {
+            let csv = 'Timestamp,AccelX,AccelY,AccelZ,GyroX,GyroY,GyroZ\n';
+            
+            csvData.forEach(sample => {
+                csv += sample.join(',') + '\n';
+            });
+            
+            return csv;
+        }
+
+        // Start session
+        function startSession() {
+            const strokeType = document.getElementById('strokeType').value.trim();
+            document.getElementById('currentStroke').textContent = strokeType;
+            document.getElementById('sessionPanel').classList.remove('hidden');
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('strokeType').disabled = true;
+            
+            // Reset counters
+            swingData = [];
+            swingCount = 0;
+            document.getElementById('swingCount').textContent = '0';
+            document.getElementById('downloadBtn').disabled = true;
+            
+            startSessionTimer();
+            log(`Session started for: ${strokeType}`);
+        }
+
+        // Handle disconnection
+        function handleDisconnection() {
+            isConnected = false;
+            updateConnectionStatus('disconnected');
+            log('Device disconnected');
+            stopSessionTimer();
+        }
+
+        // Download swing data as zip file
+        async function downloadSwings() {
+            if (swingData.length === 0) {
+                alert('No swing data to download!');
+                return;
+            }
+
+            const strokeType = document.getElementById('strokeType').value.trim();
+            log(`Creating zip file for ${swingData.length} swings...`);
+
+            try {
+                const zip = new JSZip();
+                
+                // Add each swing as a separate CSV file
+                swingData.forEach((swing, index) => {
+                    const filename = `${strokeType}${(index + 1).toString().padStart(4, '0')}.csv`;
+                    zip.file(filename, swing.csv);
+                });
+                
+                // Generate zip file
+                const content = await zip.generateAsync({type: 'blob'});
+                
+                // Create download link
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${strokeType}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                log(`Downloaded: ${strokeType}.zip (${swingData.length} files)`);
+                
+            } catch (error) {
+                log(`Download failed: ${error.message}`);
+                alert('Download failed. Please try again.');
+            }
+        }
+
+        // Reset session
+        function resetSession() {
+            if (confirm('Reset session and clear all data?')) {
+                // Disconnect if connected
+                if (isConnected && bleDevice) {
+                    bleDevice.gatt.disconnect();
+                }
+                
+                // Reset UI
+                isConnected = false;
+                updateConnectionStatus('disconnected');
+                document.getElementById('sessionPanel').classList.add('hidden');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('strokeType').disabled = false;
+                document.getElementById('strokeType').value = '';
+                document.getElementById('currentStroke').textContent = '-';
+                document.getElementById('swingCount').textContent = '0';
+                document.getElementById('sessionTime').textContent = '00:00';
+                
+                // Clear data
+                swingData = [];
+                swingCount = 0;
+                currentSwingBuffer = '';
+                
+                stopSessionTimer();
+                log('Session reset');
+            }
+        }
+
+        // Check for Web Bluetooth support
+        window.addEventListener('load', () => {
+            if (!navigator.bluetooth) {
+                alert('Web Bluetooth is not supported. Please use Chrome on Android or enable experimental features.');
+                log('Web Bluetooth not supported');
+            } else {
+                log('Web Bluetooth supported - ready to connect');
+            }
+        });
+    </script>
+</body>
+</html>
